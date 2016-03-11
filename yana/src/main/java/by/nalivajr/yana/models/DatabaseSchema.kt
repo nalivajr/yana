@@ -1,5 +1,8 @@
 package by.nalivajr.yana.models
 
+import android.content.ContentResolver
+import android.net.Uri
+
 /**
  * Created by Sergey Nalivko
  * Skype: nalivko_sergey

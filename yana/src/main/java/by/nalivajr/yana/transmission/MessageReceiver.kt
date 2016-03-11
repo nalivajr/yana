@@ -18,19 +18,19 @@ interface MessageReceiver {
      * Represents the identifier of the group, this receiver intends. Can be used for receiving specific messages
      * @return the identifier of the receiver's group.
      */
-    fun getGroupId(): String
+    fun getGroupId(): String?
 
     /**
      * Asynchronous callback, which is invoked, when message received
      * @param message the received message
      */
-    fun <T> onReceive(message: Message<T>)
+    fun onReceive(message: Message<String>)
 
     /**
      * Synchronous method which blocks thread until any message will be received
      * @return received message
      */
-    fun <T> waitMessage(): Message<T>
+    fun waitMessage(invokeOnReceive: Boolean = false): Message<String>
 
     /**
      * Synchronous method which blocks thread until any message from specific
@@ -41,5 +41,5 @@ interface MessageReceiver {
      * *
      * @return received message
      */
-    fun <T> waitMessageFrom(senderId: String, group: String?): Message<T>
+    fun waitMessageFrom(senderId: String, group: String?, invokeOnReceive: Boolean = false): Message<String>
 }

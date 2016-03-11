@@ -10,6 +10,7 @@ import by.nalivajr.yana.models.Message
 import by.nalivajr.yana.models.MutableMessage
 import by.nalivajr.yana.tools.MessageUtils
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -22,12 +23,17 @@ class YanaMessageSender : MessageSender {
 
     companion object constants {
         val DEFAULT_POOL_SIZE : Int = 5;
+        private val lock = Any();
     }
 
-    private val executor : ScheduledExecutorService;
+    private var executor : ScheduledExecutorService;
+    private var stateCheckingExecutor : ScheduledExecutorService;
     private val senderId : String;
     private val messageTableUri : Uri;
+    private val pendingMessages = CopyOnWriteArrayList<() -> Boolean>()
     private val context : Context ;
+    private var started = false;
+    private var poolSize = DEFAULT_POOL_SIZE;
 
 
     constructor(context : Context, senderId : String, authority : String, poolSize : Int) {
@@ -37,7 +43,9 @@ class YanaMessageSender : MessageSender {
                 .authority(authority)
                 .appendPath(DatabaseSchema.Message.TABLE_NAME)
                 .build();
+        this.poolSize = poolSize;
         executor = Executors.newScheduledThreadPool(poolSize);
+        stateCheckingExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
     constructor(context: Context, senderId : String, authority: String)
@@ -49,7 +57,7 @@ class YanaMessageSender : MessageSender {
     }
 
     @Throws(IllegalArgumentException::class)
-    override fun <T> send(message : Message<T>) : Message<T> {
+    override fun <T : Any> send(message : Message<T>) : Message<T> {
         if (message.senderId != senderId) {
             throw IllegalSenderException(senderId, message.senderId);
         }
@@ -59,7 +67,7 @@ class YanaMessageSender : MessageSender {
         return prepMessage;
     }
 
-    private fun <T> prepareMessage(message : Message<T>) : Message<T> {
+    private fun <T : Any> prepareMessage(message : Message<T>) : Message<T> {
         val msgId = UUID.randomUUID().toString();
         val creationDate = Date();
         try {
@@ -73,7 +81,7 @@ class YanaMessageSender : MessageSender {
     }
 
     @Throws(NoSuchFieldException::class, IllegalAccessException::class)
-    private fun <T> setValViaReflection(message : Message<T>, fieldName : String, value : Any) {
+    private fun <T : Any> setValViaReflection(message : Message<T>, fieldName : String, value : Any) {
         val creationField = Message::class.java.getField(fieldName);
         creationField.isAccessible = true;
         creationField.set(message, value);
@@ -92,7 +100,7 @@ class YanaMessageSender : MessageSender {
         });
     }
 
-    override fun <T> sendOnMyBehalf(message : Message<T>) : Message<T> {
+    override fun <T : Any> sendOnMyBehalf(message : Message<T>) : Message<T> {
         val messageToSent = message;
         setValViaReflection(messageToSent, "senderId", getSenderId())
         return send(messageToSent);
@@ -104,24 +112,62 @@ class YanaMessageSender : MessageSender {
         sendAsync(messageToSent, callback);
     }
 
-    override fun <T> sendWithDelayAsync(message : Message<T>, delay : Long, units : TimeUnit, callback : MessageSentCallback?) {
-
+    override fun <T : Any> sendWithDelayAsync(message : Message<T>, delay : Long, units : TimeUnit, callback : MessageSentCallback?) {
+        val timeToSendMillis = System.currentTimeMillis() + TimeUnit.MILLISECONDS.convert(delay, units);
+        val allowSendState = { System.currentTimeMillis() >= timeToSendMillis };
+        sendAsyncWhen(message, allowSendState, callback);
     }
 
-    override fun <T> sendOnMyBehalfAsync(message : Message<T>, delay : Long, units : TimeUnit, callback : MessageSentCallback?) {
-
+    override fun <T : Any> sendOnMyBehalfAsync(message : Message<T>, delay : Long, units : TimeUnit, callback : MessageSentCallback?) {
+        val allowedToSendState = { true }
+        sendOnMyBehalfAsyncWhen(message, allowedToSendState, callback)
     }
 
-    override fun <T> sendAsyncWhen(message : Message<T>, predicate : Predicate, callback : MessageSentCallback?) {
-
+    override fun <T : Any> sendAsyncWhen(message: Message<T>, predicate: () -> Boolean, callback: MessageSentCallback?) {
+        val checkStateTask : () -> Boolean = {
+            val stateReady = predicate.invoke()
+            if (stateReady) {
+                sendAsync(message, callback);
+            }
+            stateReady
+        }
+        pendingMessages.add(checkStateTask);
     }
 
-    override fun <T> sendOnMyBehalfAsyncWhen(message : Message<T>, predicate : Predicate, callback : MessageSentCallback?) {
-
+    override fun <T : Any> sendOnMyBehalfAsyncWhen(message : Message<T>, predicate: () -> Boolean, callback : MessageSentCallback?) {
+        val messageToSent = message;
+        setValViaReflection(messageToSent, "senderId", getSenderId())
+        sendAsyncWhen(message, predicate, callback);
     }
 
-    override fun close() {
-        executor.shutdownNow();
+    override fun start() {
+        synchronized(lock, {
+            if (started) {
+                return@synchronized;
+            }
+            executor = Executors.newScheduledThreadPool(poolSize);
+            stateCheckingExecutor = Executors.newSingleThreadScheduledExecutor();
+
+            val checkingAction = Runnable {
+                if (pendingMessages.isEmpty()) {
+                    return@Runnable;
+                }
+                val task = pendingMessages.get(0);
+                val consumed = task.invoke();
+                if (consumed) pendingMessages.remove(task);
+
+            };
+            stateCheckingExecutor.scheduleAtFixedRate(checkingAction, 0, 100, TimeUnit.MILLISECONDS);
+            started = true;
+        })
+    }
+
+    override fun stop() {
+        synchronized(lock, {
+            started = false;
+            executor.shutdownNow();
+            stateCheckingExecutor.shutdownNow();
+        })
     }
 
 }

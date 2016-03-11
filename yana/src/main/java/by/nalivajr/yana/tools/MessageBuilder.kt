@@ -9,7 +9,7 @@ import java.util.*
  * Created by Sergey Nalivko
  * Skype: nalivko_sergey
  */
-class MessageBuilder<T> {
+class MessageBuilder<T : Any> {
     private lateinit var senderId: String
 
     private lateinit var recipientId: String
@@ -21,17 +21,17 @@ class MessageBuilder<T> {
     private var payload: T? = null
 
     companion object Cretor {
-        fun <T> obtainMessageBuilder(payload: T): MessageBuilder<T> {
+        fun <T : Any> obtainMessageBuilder(payload: T): MessageBuilder<T> {
             val builder = MessageBuilder<T>()
             builder.payload = payload
             return builder
         }
-    }
 
-    fun <T> obtainMessageBuilder(command: String): MessageBuilder<T> {
-        val builder = MessageBuilder<T>()
-        builder.command = command
-        return builder
+        fun <T : Any> obtainMessageBuilder(command: String): MessageBuilder<T> {
+            val builder = MessageBuilder<T>()
+            builder.command = command
+            return builder
+        }
     }
 
     fun recipient(recipientId: String): MessageBuilder<T> {

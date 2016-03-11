@@ -28,7 +28,7 @@ interface MessageSender {
      * * To force sending such messages use [MessageSender.sendOnMyBehalf]
      */
     @Throws(IllegalSenderException::class)
-    fun <T> send(message: Message<T>): Message<T>
+    fun <T : Any> send(message: Message<T>): Message<T>
 
     /**
      * This method is similar to [MessageSender.send] but sends the message asynchronously
@@ -44,7 +44,7 @@ interface MessageSender {
      * *
      * @return new message instance with the sender ID set to this KotlinMessageSender ID
      */
-    fun <T> sendOnMyBehalf(message: Message<T>): Message<T>
+    fun <T : Any> sendOnMyBehalf(message: Message<T>): Message<T>
 
     /**
      * This method is similar to [MessageSender.sendOnMyBehalf] but sends the message asynchronously.
@@ -67,7 +67,7 @@ interface MessageSender {
      * *
      * @param callback the callback which should be invoked on messages is sent or any error occurred
      */
-    fun <T> sendWithDelayAsync(message: Message<T>, delay: Long, units: TimeUnit, callback: MessageSentCallback?)
+    fun <T : Any> sendWithDelayAsync(message: Message<T>, delay: Long, units: TimeUnit, callback: MessageSentCallback?)
 
     /**
      * This method is similar to [MessageSender.sendOnMyBehalf]
@@ -81,7 +81,7 @@ interface MessageSender {
      * *
      * @param callback the callback which should be invoked on messages is sent or any error occurred
      */
-    fun <T> sendOnMyBehalfAsync(message: Message<T>, delay: Long, units: TimeUnit, callback: MessageSentCallback?)
+    fun <T : Any> sendOnMyBehalfAsync(message: Message<T>, delay: Long, units: TimeUnit, callback: MessageSentCallback?)
 
 
     /**
@@ -94,7 +94,7 @@ interface MessageSender {
      * *
      * @param callback the callback which should be invoked on messages is sent or any error occurred
      */
-    fun <T> sendAsyncWhen(message: Message<T>, predicate: Predicate, callback: MessageSentCallback?)
+    fun <T : Any> sendAsyncWhen(message: Message<T>, predicate: () -> Boolean, callback: MessageSentCallback?)
 
     /**
      * This method is similar to [MessageSender.sendOnMyBehalf] but sends the message asynchronously
@@ -105,10 +105,15 @@ interface MessageSender {
      * *
      * @param callback the callback which should be invoked on messages is sent or any error occurred
      */
-    fun <T> sendOnMyBehalfAsyncWhen(message: Message<T>, predicate: Predicate, callback: MessageSentCallback?)
+    fun <T : Any> sendOnMyBehalfAsyncWhen(message: Message<T>, predicate: () -> Boolean, callback: MessageSentCallback?)
+
+    /**
+     * Starts this sender.
+     */
+    fun start()
 
     /**
      * Stops this sender.
      */
-    fun close()
+    fun stop()
 }

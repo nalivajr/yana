@@ -13,7 +13,7 @@ import java.util.*
  * provides set- methods to update content
  * @param <T> type of payload object.
  */
-class MutableMessage <T> : Message<T> {
+class MutableMessage <T : Any> : Message<T> {
 
     override lateinit var messageId: String
     public set;
@@ -21,8 +21,7 @@ class MutableMessage <T> : Message<T> {
     public set;
     override lateinit var senderId: String
     public set;
-    override lateinit var recipientId: String
-    public set
+    override var recipientId: String? = null;
 
     override var groupId: String? = null;
     override var order = BigInteger.ONE.negate();
@@ -35,7 +34,7 @@ class MutableMessage <T> : Message<T> {
     constructor(isOrdered: Boolean) : super(isOrdered);
 
     companion object Factory {
-        fun <E> of(message: Message<E>): MutableMessage<E> {
+        fun <E : Any> of(message: Message<E>): MutableMessage<E> {
             val res = MutableMessage<E>(message.isOrdered);
             return res;
         }
