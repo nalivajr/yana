@@ -1,9 +1,26 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="by.nalivajr.yanaproject">
 
-    <application android:allowBackup="true" android:label="@string/app_name"
-        android:icon="@mipmap/ic_launcher" android:supportsRtl="true"
+    <application
+        tools:replace="android:label"
+        android:allowBackup="true"
+        android:label="Yana Sample"
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <provider
+            android:exported="false"
+            android:authorities="YanaSampleAuthority"
+            android:name=".sample.provider.SampleProvider"/>
+
+        <activity android:name=".sample.ui.SampleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
 
     </application>
 
