@@ -19,7 +19,7 @@ interface DatabaseSchema {
     interface Message {
 
         companion object {
-            val TABLE_NAME = "`Message`"
+            val TABLE_NAME = "Message"
             val CODE_ONE = 100001
             val CODE_MANY = 100002
             val TYPE_ONE = "vnd.android.cursor.item/vnd.$AUTHORITY.$TABLE_NAME";
@@ -32,7 +32,7 @@ interface DatabaseSchema {
             val RECIPIENT_ID = "recipientId"
             val GROUP_ID = "groupId"
 
-            val ORDER = "order"
+            val ORDER = "messageOrder"
             val ORDERED = "isOrdered"
 
             val COMMAND = "command"

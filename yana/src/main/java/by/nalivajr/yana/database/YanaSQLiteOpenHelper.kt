@@ -23,14 +23,14 @@ open class YanaSQLiteOpenHelper constructor(
         val DATABASE_NAME = "YanaMessageDB";
         private val CREATION_SQL = "CREATE TABLE " +
                 "${DBSchema.Message.TABLE_NAME} (" +
-                "${DBSchema.Message.MESSAGE_ID} ${DBSchema.DATA_TYPE_TEXT} UNIQUE " +
-                "${DBSchema.Message.GROUP_ID} ${DBSchema.DATA_TYPE_TEXT} " +
-                "${DBSchema.Message.SENDER_ID} ${DBSchema.DATA_TYPE_TEXT} " +
-                "${DBSchema.Message.RECIPIENT_ID} ${DBSchema.DATA_TYPE_TEXT} " +
-                "${DBSchema.Message.CREATION_DATE} ${DBSchema.DATA_TYPE_INTEGER} " +
-                "${DBSchema.Message.COMMAND} ${DBSchema.DATA_TYPE_TEXT} " +
-                "${DBSchema.Message.ORDER} ${DBSchema.DATA_TYPE_TEXT} " +
-                "${DBSchema.Message.ORDERED} ${DBSchema.DATA_TYPE_INTEGER} " +
+                "${DBSchema.Message.MESSAGE_ID} ${DBSchema.DATA_TYPE_TEXT} UNIQUE, " +
+                "${DBSchema.Message.GROUP_ID} ${DBSchema.DATA_TYPE_TEXT}, " +
+                "${DBSchema.Message.SENDER_ID} ${DBSchema.DATA_TYPE_TEXT}, " +
+                "${DBSchema.Message.RECIPIENT_ID} ${DBSchema.DATA_TYPE_TEXT}, " +
+                "${DBSchema.Message.CREATION_DATE} ${DBSchema.DATA_TYPE_INTEGER}, " +
+                "${DBSchema.Message.COMMAND} ${DBSchema.DATA_TYPE_TEXT}, " +
+                "${DBSchema.Message.ORDER} ${DBSchema.DATA_TYPE_TEXT}, " +
+                "${DBSchema.Message.ORDERED} ${DBSchema.DATA_TYPE_INTEGER}, " +
                 "${DBSchema.Message.PAYLOAD} ${DBSchema.DATA_TYPE_TEXT} )";
     }
 

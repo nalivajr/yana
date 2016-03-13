@@ -10,6 +10,7 @@ import by.nalivajr.yana.Yana
 import by.nalivajr.yana.models.DatabaseSchema
 import by.nalivajr.yana.models.Message
 import by.nalivajr.yana.tools.MessageUtils
+import java.math.BigInteger
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -18,41 +19,34 @@ import java.util.concurrent.Executors
  * Created by Sergey Nalivko
  * Skype: nalivko_sergey
  */
-class YanaMessageReceiver(context: Context, authority : String,
+open class YanaMessageReceiver(private val context: Context,
+                          private val authority : String,
                           private val groupId : String? = null,
                           private val receiverId: String) : MessageReceiver {
 
     companion object {
-        private val lock: Any = Any();
+        private val waitersLock: Any = Any();
+        private val stateLock: Any = Any();
     }
 
-    private val observer : ContentObserver;
-    private val handlerThread : HandlerThread;
-    private var lastEvenTimestamp = System.currentTimeMillis();
-    private val notifierThread : ExecutorService;
+    private lateinit var observer : ContentObserver;
+    private lateinit var handlerThread : HandlerThread;
+    private lateinit var notifierThread : ExecutorService;
+    private var startTime = System.currentTimeMillis();
+    private var lastMessageId : BigInteger? = null
     private val messageWaiters = HashMap<Pair<String, String?>?, ArrayList<ItemBox>>()
-
-    init {
-        notifierThread = Executors.newCachedThreadPool();
-        handlerThread = HandlerThread("MessageReceiverHandlerThread");
-        handlerThread.start();
-
-        val handler = Handler(handlerThread.looper)
-        val uri = Yana.buildUri(authority, DatabaseSchema.Message.TABLE_NAME);
-
-        observer = createContentObserver(context, handler)
-        context.contentResolver.registerContentObserver(uri, true, observer)
-    }
+    private var started = false;
 
     private fun createContentObserver(context: Context, handler: Handler): ContentObserver
             = object : ContentObserver(handler) {
 
         override fun onChange(selfChange: Boolean, uri: Uri?) {
-            var checkTimestamp = System.currentTimeMillis();
+            val clauseColumn = if (lastMessageId == null) DatabaseSchema.Message.CREATION_DATE else DatabaseSchema.Message.MESSAGE_ID;
+            val clauseArg = if (lastMessageId == null) startTime.toString() else lastMessageId.toString()
 
-            val selection = "${DatabaseSchema.Message.CREATION_DATE} >= ? AND " +
+            val selection = "$clauseColumn > ? AND " +
                     "(${DatabaseSchema.Message.RECIPIENT_ID}=? OR ${DatabaseSchema.Message.RECIPIENT_ID} IS NULL)"
-            val selectionArgs = arrayOf(receiverId, lastEvenTimestamp.toString())
+            val selectionArgs = arrayOf(clauseArg, receiverId)
             val cursor = context.contentResolver.query(uri, null, selection, selectionArgs, null);
             val messages = arrayListOf<Message<String>>();
             if (cursor?.moveToFirst() == true) {
@@ -63,11 +57,9 @@ class YanaMessageReceiver(context: Context, authority : String,
                 cursor.close();
             }
             if (messages.isEmpty() == false) {
-                messages.sortWith(Comparator { m1, m2 -> m1.creationDate.compareTo(m2.creationDate) })
-                checkTimestamp = messages.last().creationDate.time;
+                messages.sortWith(Comparator { m1, m2 -> m1.messageId.compareTo(m2.messageId) })
+                lastMessageId = messages.last().messageId;
             }
-            lastEvenTimestamp = checkTimestamp;
-
 
             notifierThread.submit { processReceivedMessage(messages) }
         }
@@ -81,7 +73,7 @@ class YanaMessageReceiver(context: Context, authority : String,
         return groupId;
     }
 
-    override fun onReceive(message: Message<String>) {
+    open override fun onReceive(message: Message<String>) {
         Log.i(YanaMessageReceiver::class.simpleName, "New message received $message")
     }
 
@@ -92,6 +84,39 @@ class YanaMessageReceiver(context: Context, authority : String,
     override fun waitMessageFrom(senderId: String, group: String?, invokeOnReceive: Boolean): Message<String> {
         val pair = Pair(senderId, group)
         return waitMessageInternal(invokeOnReceive, pair)
+    }
+
+    override fun start() {
+        synchronized(stateLock, {
+            if (started) {
+                return@synchronized
+            }
+            notifierThread = Executors.newCachedThreadPool();
+            handlerThread = HandlerThread("MessageReceiverHandlerThread");
+            handlerThread.start();
+
+            val handler = Handler(handlerThread.looper)
+            val uri = Yana.buildUri(authority, DatabaseSchema.Message.TABLE_NAME);
+
+            observer = createContentObserver(context, handler)
+            context.contentResolver.registerContentObserver(uri, true, observer)
+
+            startTime = System.currentTimeMillis();
+            started = true;
+
+        })
+    }
+
+    override fun stop() {
+        synchronized(stateLock, block = {
+            if (!started) {
+                return@synchronized
+            }
+            notifierThread.shutdownNow();
+            handlerThread.quit();
+            context.contentResolver.unregisterContentObserver(observer);
+            started = false;
+        })
     }
 
     private fun waitMessageInternal(invokeOnReceive: Boolean, pair: Pair<String, String?>?): Message<String> {
@@ -108,7 +133,7 @@ class YanaMessageReceiver(context: Context, authority : String,
     }
 
     private fun registerWaiter(box: ItemBox, pair: Pair<String, String?>?) {
-        synchronized(lock, {
+        synchronized(waitersLock, {
             var registered = messageWaiters[pair];
             if (registered == null) {
                 registered = arrayListOf();
@@ -121,7 +146,7 @@ class YanaMessageReceiver(context: Context, authority : String,
     private fun processReceivedMessage(message: ArrayList<Message<String>>) {
         try {
             var registeredWaiters : MutableMap<Pair<String, String?>?, List<ItemBox>> = HashMap();
-            synchronized(lock, {
+            synchronized(waitersLock, {
                 registeredWaiters.putAll(messageWaiters);
                 messageWaiters.clear();
             })

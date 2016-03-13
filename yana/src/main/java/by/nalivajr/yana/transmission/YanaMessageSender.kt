@@ -7,19 +7,20 @@ import by.nalivajr.yana.callbacks.MessageSentCallback
 import by.nalivajr.yana.exceptions.IllegalSenderException
 import by.nalivajr.yana.models.DatabaseSchema
 import by.nalivajr.yana.models.Message
-import by.nalivajr.yana.models.MutableMessage
 import by.nalivajr.yana.tools.MessageUtils
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KMutableProperty
+import kotlin.reflect.declaredMemberProperties
 
 /**
  * Created by Sergey Nalivko
  * Skype: nalivko_sergey
  */
-class YanaMessageSender : MessageSender {
+open class YanaMessageSender : MessageSender {
 
     companion object constants {
         val DEFAULT_POOL_SIZE : Int = 5;
@@ -71,7 +72,6 @@ class YanaMessageSender : MessageSender {
         val msgId = UUID.randomUUID().toString();
         val creationDate = Date();
         try {
-            setValViaReflection(message, "messageId", msgId);
             setValViaReflection(message, "creationDate", creationDate);
         } catch (e : Exception) {
             //throwing up for developing efforts
@@ -82,16 +82,13 @@ class YanaMessageSender : MessageSender {
 
     @Throws(NoSuchFieldException::class, IllegalAccessException::class)
     private fun <T : Any> setValViaReflection(message : Message<T>, fieldName : String, value : Any) {
-        val creationField = Message::class.java.getField(fieldName);
-        creationField.isAccessible = true;
-        creationField.set(message, value);
-        creationField.isAccessible = false;
+        val map = message.javaClass.kotlin.declaredMemberProperties.associate { it.name to it }
+        (map[fieldName] as KMutableProperty<*>).setter.call(message, value);
     }
 
     override fun <T : Any> sendAsync(message : Message<T>, callback : MessageSentCallback?) {
         executor.submit({
             try {
-                MutableMessage.of(message);
                 val msg = send(message);
                 callback?.onSuccess(msg);
             } catch (e : Throwable) {

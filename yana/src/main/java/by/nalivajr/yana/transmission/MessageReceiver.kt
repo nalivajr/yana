@@ -42,4 +42,14 @@ interface MessageReceiver {
      * @return received message
      */
     fun waitMessageFrom(senderId: String, group: String?, invokeOnReceive: Boolean = false): Message<String>
+
+    /**
+     * Starts listener
+     */
+    fun start();
+
+    /**
+     * Stops listening
+     */
+    fun stop();
 }

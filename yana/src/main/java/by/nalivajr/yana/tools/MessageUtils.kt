@@ -3,6 +3,7 @@ package by.nalivajr.yana.tools
 import android.content.ContentValues
 import android.database.Cursor
 import by.nalivajr.yana.models.*
+import com.google.gson.Gson
 import java.math.BigInteger
 import by.nalivajr.yana.models.DatabaseSchema as DBSchema;
 import java.util.*
@@ -15,13 +16,15 @@ import kotlin.reflect.KClass
 class MessageUtils {
     companion object Utils {
 
+        private val gson = Gson();
+
         /**
          * Converts [Message] instance to [ContentValues] object
          * @param message the message to be converted
          */
         fun <T : Any> toContentValues(message: Message<T>): ContentValues {
             val contentValues = ContentValues()
-            contentValues.put(DBSchema.Message.MESSAGE_ID, message.messageId)
+            contentValues.put(DBSchema.Message.MESSAGE_ID, message.messageId.toString())
             contentValues.put(DBSchema.Message.SENDER_ID, message.senderId)
             putNullable(contentValues, DBSchema.Message.RECIPIENT_ID, message.recipientId)
             putNullable(contentValues, DBSchema.Message.GROUP_ID, message.groupId)
@@ -29,7 +32,7 @@ class MessageUtils {
             putNullable(contentValues, DBSchema.Message.COMMAND, message.command)
             contentValues.put(DBSchema.Message.ORDERED, message.isOrdered)
             contentValues.put(DBSchema.Message.ORDER, message.order.toString())
-            //TODO: add payload to JSON conversion and adding to CV;
+            putNullable(contentValues, DBSchema.Message.PAYLOAD, gson.toJson(message.payload))
             return contentValues
         }
 
@@ -47,19 +50,23 @@ class MessageUtils {
             val order = cursor.getString(cursor.getColumnIndex(DBSchema.Message.ORDER))
             val ordered = cursor.getInt(cursor.getColumnIndex(DBSchema.Message.ORDERED)) == 1
 
-            val mutableMessage = MutableMessage<T>()
-            mutableMessage.messageId = messageId
+            val mutableMessage = MutableMessage<T>(ordered)
+            mutableMessage.messageId = BigInteger(messageId)
             mutableMessage.senderId = senderId
             mutableMessage.recipientId = recipientId
             mutableMessage.groupId = groupId
             mutableMessage.creationDate = Date(creation)
             mutableMessage.command = command
             mutableMessage.order = BigInteger(order)
-            mutableMessage.isOrdered = ordered;
             if (payloadClass != null) {
-                //TODO: add conversion of payload from JSON
+                val payloadJson = cursor.getString(cursor.getColumnIndex(DBSchema.Message.PAYLOAD));
+                mutableMessage.payload = convertPayloadFromJson(payloadJson, payloadClass.java);
             }
             return mutableMessage
+        }
+
+        fun <T : Any> convertPayloadFromJson(payloadJson : String?, payloadClass : Class<T>) : T? {
+            return payloadJson?.run { gson.fromJson(payloadJson, payloadClass) }
         }
 
 

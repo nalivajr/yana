@@ -10,18 +10,18 @@ import java.util.*
  * Skype: nalivko_sergey
  */
 class MessageBuilder<T : Any> {
-    private lateinit var senderId: String
+    private var senderId: String? = null
 
-    private lateinit var recipientId: String
+    private var recipientId: String? = null
     private var groupId: String? = null;
 
-    private var order: BigInteger? = null
+    private var order: BigInteger = BigInteger.ONE
 
     private var command: String? = null
     private var payload: T? = null
 
-    companion object Cretor {
-        fun <T : Any> obtainMessageBuilder(payload: T): MessageBuilder<T> {
+    companion object Creator {
+        fun <T : Any> obtainMessageBuilderWithPayload(payload: T): MessageBuilder<T> {
             val builder = MessageBuilder<T>()
             builder.payload = payload
             return builder
@@ -34,7 +34,7 @@ class MessageBuilder<T : Any> {
         }
     }
 
-    fun recipient(recipientId: String): MessageBuilder<T> {
+    fun recipient(recipientId: String?): MessageBuilder<T> {
         this.recipientId = recipientId
         return this
     }
@@ -69,11 +69,13 @@ class MessageBuilder<T : Any> {
     }
 
     fun build(): Message<T> {
-        val msg = MutableMessage<T>(order == null)
+        val msg = MutableMessage<T>(false)
         msg.creationDate = Date()
         msg.order = order
         msg.payload = payload
-        msg.senderId = senderId
+        if (senderId != null) {
+            msg.senderId = senderId as String;
+        }
         msg.recipientId = recipientId
         msg.command = command
         msg.groupId = groupId

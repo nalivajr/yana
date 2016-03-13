@@ -15,28 +15,42 @@ import java.util.*
  */
 class MutableMessage <T : Any> : Message<T> {
 
-    override lateinit var messageId: String
-    public set;
-    override lateinit var creationDate: Date
-    public set;
-    override lateinit var senderId: String
-    public set;
-    override var recipientId: String? = null;
+    override var messageId: BigInteger
+    get() = super.messageId
+    public set(value) { super.messageId = value }
 
-    override var groupId: String? = null;
-    override var order = BigInteger.ONE.negate();
-    override var isOrdered: Boolean = false;
-    override var command: String? = null;
-    override var payload: T? = null;
+    override var creationDate: Date
+    get() = super.creationDate
+    public set(value) { super.creationDate = value }
+
+    override var senderId: String
+    get() = super.senderId
+    public set(value) { super.senderId = value }
+
+    override var recipientId: String?
+    get() = super.recipientId
+    public set(value) { super.recipientId = value}
+
+    override var groupId: String?
+    get() = super.groupId
+    public set (value) { super.groupId = value}
+
+
+    override var order : BigInteger?
+    get() = super.order
+    public set(value) { super.order = value }
+
+    override var command: String?
+    get() = super.command
+    public set(value) { super.command = value }
+
+    override var payload: T?
+    get() = super.payload
+    public set(value) { super.payload = value}
 
     constructor() : this(false);
 
-    constructor(isOrdered: Boolean) : super(isOrdered);
-
-    companion object Factory {
-        fun <E : Any> of(message: Message<E>): MutableMessage<E> {
-            val res = MutableMessage<E>(message.isOrdered);
-            return res;
-        }
+    constructor(isOrdered: Boolean) : super(isOrdered) {
+        this.order = BigInteger.ONE.negate();
     }
 }
