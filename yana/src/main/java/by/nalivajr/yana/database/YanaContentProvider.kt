@@ -87,8 +87,11 @@ abstract class YanaContentProvider(
         readableDatabase.beginTransaction();
         try {
             val maxIdColName = "maxId"
+            val lenColName = "len"
             val cursor = readableDatabase.query(DatabaseSchema.Message.TABLE_NAME,
-                    arrayOf("MAX(${DatabaseSchema.Message.MESSAGE_ID}) as $maxIdColName "), null, null, null, null, null);
+                    arrayOf("LENGTH(${DatabaseSchema.Message.MESSAGE_ID}) as $lenColName, " +
+                            "MAX(${DatabaseSchema.Message.MESSAGE_ID}) as $maxIdColName"), null, null,
+                    "len", null, "$lenColName desc");
 
             if (cursor?.moveToFirst() == false) {
                 result = AtomicBigInteger(BigInteger.ZERO)
