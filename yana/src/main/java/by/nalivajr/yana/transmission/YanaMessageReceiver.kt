@@ -41,10 +41,20 @@ open class YanaMessageReceiver(private val context: Context,
             = object : ContentObserver(handler) {
 
         override fun onChange(selfChange: Boolean, uri: Uri?) {
-            val clauseColumn = if (lastMessageId == null) DatabaseSchema.Message.CREATION_DATE else DatabaseSchema.Message.MESSAGE_ID;
-            val clauseArg = if (lastMessageId == null) startTime.toString() else lastMessageId.toString()
+            val clauseArg : String;
+            val clauseColumn : String;
 
-            val selection = "$clauseColumn > ? AND " +
+            if (lastMessageId == null) {
+                clauseArg = startTime.toString()
+                clauseColumn = "((${DatabaseSchema.Message.CREATION_DATE}";
+            } else {
+                clauseArg = lastMessageId.toString()
+                val nextPowArg = BigInteger.TEN.pow(lastMessageId.toString().length);
+                clauseColumn = "((LENGTH(${DatabaseSchema.Message.MESSAGE_ID}) > ${clauseArg.length} AND ${DatabaseSchema.Message.MESSAGE_ID} >= $nextPowArg)" +
+                        " OR (LENGTH(${DatabaseSchema.Message.MESSAGE_ID}) = ${clauseArg.length} AND ${DatabaseSchema.Message.MESSAGE_ID}"
+            }
+
+            val selection = "$clauseColumn > ?)) AND " +
                     "(${DatabaseSchema.Message.RECIPIENT_ID}=? OR ${DatabaseSchema.Message.RECIPIENT_ID} IS NULL)"
             val selectionArgs = arrayOf(clauseArg, receiverId)
             val cursor = context.contentResolver.query(uri, null, selection, selectionArgs, null);
@@ -73,7 +83,7 @@ open class YanaMessageReceiver(private val context: Context,
         return groupId;
     }
 
-    open override fun onReceive(message: Message<String>) {
+    override fun onReceive(message: Message<String>) {
         Log.i(YanaMessageReceiver::class.simpleName, "New message received $message")
     }
 
